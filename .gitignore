@@ -1,0 +1,4 @@
+.venv/
+demo/out/*.mp4
+__pycache__/
+dist/
