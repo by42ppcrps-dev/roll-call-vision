@@ -2,7 +2,7 @@
 match -> mark vote 'vision-confirmed'; mismatch/unsure -> re-look denser at lower threshold;
 still disagree -> fail closed: hold minutes approval and ask a human (Board Clerk rule).
 
-Fail-closed guards (Pika #2381):
+Fail-closed guards:
 - zero-frame vote window never confirms (even if ayes_said == 0)
 - empty / missing transcript votes never silently set minutes_approvable True
 """

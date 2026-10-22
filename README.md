@@ -10,7 +10,7 @@ All video in this repo is synthetic (stick-figure seats). No real meeting footag
 
 ## How it works
 
-1. **Perceive** (`rcv/vision.py`, OpenCV 5.0): for each seat region, grayscale, blur, `absdiff` against a median background from the frames before the vote, threshold, morphological open, external contours, largest-area test. A dark-fraction check flags a blocked seat. Per-frame results are pooled over the vote window (50% or more of frames = aye, 20 to 50% = unsure).
+1. **Perceive** (`rcv/vision.py`, OpenCV 5.0): for each seat region, grayscale, blur, `absdiff` against a median background taken from the first 1.5 seconds of the video, threshold, morphological open, external contours, largest-area test. A dark-fraction check flags a blocked seat. Per-frame results are pooled over the vote window (50% or more of frames = aye, 20 to 50% = unsure).
 2. **Decide** (`rcv/agent.py`): if the count matches the transcript and no seat is unsure, confirm. Otherwise re-look at the same window with a denser, lower-threshold setting.
 3. **Act**: still off after the second look means hold minutes approval and ask a human. A window with zero frames or an empty vote list never confirms. Every step goes into a JSON trace.
 
@@ -45,7 +45,7 @@ Deployed to AWS Lambda in us-east-2 as a zip function plus an OpenCV 5 layer (no
 
 - Function `roll-call-vision`, Python 3.12, layer with `opencv-python-headless==5.0.0.93` and numpy.
 - Function URL with AWS_IAM auth. It is not open to the public, so signed requests only. For judging we can run it live over a screen share, and the demo video shows live invocations.
-- Request: `{"demo": "clean"}` or `{"demo": "transcript_error"}` for the bundled clips, or `{"s3_video": "s3://bucket/key.mp4", "transcript": {...}, "seats": 7}`.
+- Request: `{"demo": "clean"}` or `{"demo": "transcript_error"}` for the bundled clips, or `{"s3_video": "s3://bucket/key.mp4", "transcript": {...}, "seats": 7}`. The S3 input needs an S3 read policy on the function role; the deployed demo is meant to be called with the bundled clips.
 - Response: per-vote `ayes_said`, `ayes_seen`, `action`, and `minutes_approvable`. Errors fail closed (`minutes_approvable: false`).
 - The full decision trace is written to CloudWatch Logs on every call.
 

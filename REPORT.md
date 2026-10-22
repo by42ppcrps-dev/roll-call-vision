@@ -1,7 +1,7 @@
 # Roll Call Vision: technical report (v0.2.2, Oct 13 2026)
 
 ## Problem and users
-Volunteer boards (HOAs, school boards, nonprofits) approve minutes that record each vote. Transcripts and notes often get the count wrong ("passed 5-2" when 4 hands went up). Wrong minutes are legal records. Users: board secretaries and minute-takers (LumeGrid's MinutesDesk / Board Clerk customers).
+Volunteer boards (HOAs, school boards, nonprofits) approve minutes that record each vote. Transcripts and notes often get the count wrong ("passed 5-2" when 4 hands went up). Wrong minutes are legal records. Users: board secretaries and minute-takers.
 
 ## What it does
 OpenCV 5 watches the meeting video during each vote window, counts raised hands per seat, and compares the count with what the transcript says. An agent decides what happens next: confirm, look again more carefully, or block minutes approval and ask a person. Visual evidence changes the next action (Agentic Vision path).
@@ -31,7 +31,7 @@ Optional S3 video input (`s3_video` + transcript) is supported by the handler; d
 | Metric | Result |
 |---|---|
 | Hand-count accuracy | 69/81 (85%) |
-| Agent decision correct (after exemptions below) | 81/81 (100%) |
+| Agent decision correct (after exemptions below) | 81/81 by our scorer (occlusion and half-raise holds count as expected) |
 | Transcript errors caught | 4/4 injected M1 errors (one per txerr meeting; txerr case has 10 votes total) |
 | Unsafe confirms (confirmed a wrong transcript) | **0** |
 | False holds (see definition) | **12 / 81** |
@@ -46,7 +46,7 @@ Scorer exemptions (when a hold is *expected*, not scored as a decision error):
 - **Occlusion:** only M1 (the dark blob is timed to the first vote window).
 - **Half-raise:** any motion whose aye set includes a half-raised seat (half seats half-raise whenever they vote, including M2/M3 on meetings such as m06).
 
-After those exemptions, unexpected false holds are **0 / 81**. Do not use the older REPORT figure of “8 false holds”. It had no consistent denominator (raw holds-with-correct-transcript = 12; residual after the old M1-only half-raise exemption = 4).
+After those exemptions, unexpected false holds are **0 / 81**.
 
 By case (count accuracy / decision accuracy): clean 21/21 & 21/21; drift 11/11 & 11/11; brief 10/10 & 10/10; jitter 10/10 & 10/10; transcript error 10/10 & 10/10; occlusion 6/10 counts & 10/10 decisions; half raise 1/9 counts & 9/9 decisions (head-height hands missed → hold).
 
@@ -58,3 +58,14 @@ By case (count accuracy / decision accuracy): clean 21/21 & 21/21; drift 11/11 &
 
 ## Responsible use
 No facial recognition or identity: seats are counted, never named by vision. Evidence only flags; a human always makes the final call. Video retention 7 days (planned S3 lifecycle on `videos/` prefix). Not for surveillance; only for meetings that are already public record and recorded with consent.
+
+## Agent trace: OpenCV output changes the next step
+From `python demo/run_demo.py` (output `demo/out/transcript_error.json`, generated locally, not committed). The transcript says 4 ayes for M1; the video shows 3.
+
+| Step | What the agent did | OpenCV result | Decision |
+|---|---|---|---|
+| 0 | `count_hands` stride 5, thresh 35 (7 frames, 28 ms) | 3 hands (seats 0, 1, 2), no unsure seats | Mismatch with the transcript, so look again |
+| 1 | `count_hands` stride 1, thresh 25 (31 frames, 56 ms) | 3 hands, no unsure seats | Still a mismatch, so escalate |
+| Result | `hold_approval_request_human` | | `minutes_approvable: false`: "transcript says 4 ayes, video shows 3. Minutes stay unapproved until a person confirms." |
+
+The first perception result decides whether a second, denser and more sensitive pass runs, and the second result decides whether the minutes can be approved or must go to a person.

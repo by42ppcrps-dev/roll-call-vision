@@ -1,4 +1,4 @@
-"""Fail-closed regression tests (Pika #2381). No video pipeline required."""
+"""Fail-closed regression tests. No video pipeline required."""
 import os, sys, unittest
 from unittest.mock import patch
 
